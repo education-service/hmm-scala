@@ -3,26 +3,19 @@ package zx.soft.hmm.algorithm
 import org.apache.mahout.math.{ DenseMatrix, DenseVector }
 
 /**
- * Implementation of the Viterbi algorithm to compute the most
- * likely hidden sequence for a given model and observation
- */
-object AlgoViterbi {
+  * Viterbi算法，用于计算一个给定HMM模型和观察序列的最有可能的隐含序列
+  */
+object Viterbi {
 
 	def run(model : Model, observations : Array[Int], scaled : Boolean) : Array[Int] = {
 
 		val numStates = model.getNumHiddenStates()
 		val numObserv = observations.length
 
-		/*
-     * Probability that the most probable hidden states ends
-     * at state i at time t
-     */
+		/* t时刻，最可能的隐含状态落在在状态i的概率 */
 		val delta = Array.fill[Double](numObserv, numStates)(0.0)
 
-		/*
-     * Previous hidden state in the most probable state leading up
-     * to state i at time t
-     */
+		/* t时刻，前面的隐含状态变为状态i的最可能的状态 */
 		val phi = Array.fill[Int](numObserv - 1, numStates)(0)
 
 		val sequence = new Array[Int](numObserv)
@@ -43,23 +36,17 @@ object AlgoViterbi {
 		val numObserv = observations.length
 
 		if (scaled) {
-			/*
-       * Inizialization
-       */
+
+			// 初始化
 			(0 until numStates).foreach(i => delta(0)(i) = Math.log(Pi.getQuick(i) * B.getQuick(i, observations(0))))
 
-			/*
-       * Iterate over the time
-       */
+			// 根据时间迭代
 			(1 until numObserv).foreach(t => {
-				/*
-         * Iterate over the hidden states
-         */
+
+				// 在隐含状态上迭代
 				(0 until numStates).foreach(i => {
-					/*
-           * Find the maximum probability and most likely state
-           * leading up to this
-           */
+
+					// 计算出达到该状态的最大概率和最可能的状态
 					var maxState = 0
 					var maxProb = delta(t - 1)(0) + Math.log(A.getQuick(0, i))
 
@@ -79,23 +66,17 @@ object AlgoViterbi {
 			})
 
 		} else {
-			/*
-       * Inizialization
-       */
+
+			// 初始化
 			(0 until numStates).foreach(i => delta(0)(i) = Pi.getQuick(i) * B.getQuick(i, observations(0)))
 
-			/*
-       * Iterate over the time
-       */
+			// 根据时间迭代
 			(1 until numObserv).foreach(t => {
-				/*
-         * Iterate over the hidden states
-         */
+
+				// 在隐含状态上迭代
 				(0 until numStates).foreach(i => {
-					/*
-           * Find the maximum probability and most likely state
-           * leading up to this
-           */
+
+					// 计算出达到该状态的最大概率和最可能的状态
 					var maxState = 0
 					var maxProb = delta(t - 1)(0) * A.getQuick(0, i)
 
@@ -117,8 +98,8 @@ object AlgoViterbi {
 		}
 
 		/*
-     * Find the most likely end state for initialization
-     */
+		 * 对于初始情况，计算出最可能的最终状态
+		 */
 		var maxProb = if (scaled) Double.NegativeInfinity else 0.0
 
 		(0 until numStates).foreach(i => {
@@ -131,9 +112,7 @@ object AlgoViterbi {
 
 		})
 
-		/*
-     * Backtrack to find the most likely hidden sequence
-     */
+		// 回溯，找出最可能的隐含序列
 		for (t <- observations.length - 2 to 0 by -1) {
 			sequence(t) = phi(t)(sequence(t + 1))
 		}

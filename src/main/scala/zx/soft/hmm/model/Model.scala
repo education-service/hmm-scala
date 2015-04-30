@@ -7,70 +7,52 @@ import org.apache.mahout.math.{ DenseMatrix, DenseVector }
 
 import scala.collection.mutable.HashMap
 
+/**
+  * HMM 数据模型
+  */
 class Model extends Cloneable {
 
-	/*
-   * Map for storing the observed state names
-   */
+	// 存储观察状态名称
 	private var outputStateNames = HashMap.empty[String, Int]
-	/*
-   * Map for storing the hidden state names
-   */
+
+	// 存储隐含状态名称
 	private var hiddenStateNames = HashMap.empty[String, Int]
 
-	/* Number of hidden states */
+	/* 隐含状态数 */
 	private var numHiddenStates : Int = 0
 
-	/* Number of output states */
+	/* 输出状态数 */
 	private var numOutputStates : Int = 0
 
 	/*
-   * Transition matrix containing the transition probabilities
-   * between hidden states.
-   *
-   * TransitionMatrix(i,j) is the probability that we change from
-   * hidden state i to hidden state j
-   *
-   * In general: P(h(t+1)=h_j | h(t) = h_i) = TransitionMatrix(i,j)
-   *
-   * Since we have to make sure that each hidden state can be "left",
-   * the following normalization condition has to hold:
-   *
-   * sum(TransitionMatrix(i,j),j=1..hiddenStates) = 1
-   */
+	 * 传输矩阵：表示隐含状态之间的传输概率，
+	 * TransitionMatrix(i,j)表示从隐含状态i到隐含状态j的概率，
+	 *  概率的一般表达式：P(h(t+1)=h_j | h(t) = h_i) = TransitionMatrix(i,j)，
+	 *  因为需要确保每个隐含状态位于“左边”，所以可以使用下面的归一化条件来限制：
+	 *      sum(TransitionMatrix(i,j),j=1..hiddenStates) = 1
+	 */
 	private var A : DenseMatrix = null
 
 	/*
-   * Output matrix containing the probabilities that we observe
-   * a given output state given a hidden state.
-   *
-   * OutputMatrix(i,j) is the probability that we observe output
-   * state j if we are in hidden state i.
-   *
-   * Formally: P(o(t)=o_j | h(t)=h_i) = outputMatrix(i,j)
-   *
-   * Since we always have an observation for each hidden state,
-   * the following normalization condition has to hold:
-   *
-   * sum(OutputMatrix(i,j),j=1..outputStates) = 1
-   */
+	 * 输出矩阵：表示观察一个特定输出状态得到一个隐含状态的概率，
+	 * OutputMatrix(i,j)表示在隐含状态i的情况下，观察到输出状态j的概率，
+	 * 概率的一般表达式：P(o(t)=o_j | h(t)=h_i) = outputMatrix(i,j)，
+	 * 因为对于每个隐含状态都需要观察，所以可以使用下面的归一化条件来限制：
+	 * sum(OutputMatrix(i,j),j=1..outputStates) = 1
+	 */
 	private var B : DenseMatrix = null
 
 	/*
-   * Vector containing the initial hidden state probabilities:
-   *
-   * P(h(0)=h_i) = initialProbabilities(i)
-   *
-   * Since we are dealing with probabilities the following
-   * normalization condition has to hold:
-   *
-   * sum(InitialProbabilities(i),i=1..hiddenStates) = 1
-   */
+	 * 向量：表示初始隐含状态概率，
+	 * 概率的一般表达式：P(h(0)=h_i) = initialProbabilities(i)，
+	 * 需要通过下面的归一化条件来处理概率：
+	 * sum(InitialProbabilities(i),i=1..hiddenStates) = 1
+	 */
 	private var Pi : DenseVector = null
 
 	/**
-	 * Clone the model
-	 */
+	  * 克隆HMM数据模型
+	  */
 	override def clone() : Model = {
 
 		val AMatrixClone = A.clone().asInstanceOf[DenseMatrix]
@@ -91,9 +73,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Assign the content of another HMM model
-	 * to this model
-	 */
+	  * 将另外一个HMM数据模型复制过来
+	  */
 	def assign(model : Model) {
 
 		this.numHiddenStates = model.numHiddenStates;
@@ -110,13 +91,9 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Construct a valid random Hidden-Markov parameter set
-	 * with the given number of hidden and output states using
-	 * a given seed.
-	 *
-	 * Seed is for the random initialization, if set to 0 the
-	 * current time is used.
-	 */
+	  * 通过给定的隐含状态数和输出状态数来构造一个有效的随机Hidden-Markov参数集，
+	  * seed参数用于随机初始化，如果设置为0的话，表示使用当前时间。
+	  */
 	def this(numHiddenStates : Int, numOutputStates : Int, seed : Long) {
 		this()
 
@@ -133,16 +110,15 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Construct a valid random Hidden-Markov parameter set
-	 * with the given number of hidden and output states.
-	 */
+	  * 通过给定的隐含状态数和输出状态数构造一个有效的随机Hidden-Markov参数集。
+	  */
 	def this(numHiddenStates : Int, numOutputStates : Int) {
 		this(numHiddenStates, numOutputStates, 0);
 	}
 
 	/**
-	 * Generates a Hidden Markov model using specified parameters.
-	 */
+	  * 通过制定的参数生成一个HMM
+	  */
 	def this(A : DenseMatrix, B : DenseMatrix, Pi : DenseVector) {
 		this()
 
@@ -157,14 +133,14 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Initialize a valid random set of HMM parameters
-	 */
+	  * 初始化一个有效的随机HMM参数集合
+	  */
 	private def initRandomParameters(seed : Long) {
 
-		/* Initialize the random number generator */
+		/* 初始化随机数生成器 */
 		val rand : Random = if (seed == 0) RandomUtils.getRandom() else RandomUtils.getRandom(seed)
 
-		/* Initialize the initial probabilities */
+		/* 初始化起始概率 */
 		var sum : Double = 0
 		(0 until numHiddenStates).foreach(i => {
 
@@ -175,10 +151,10 @@ class Model extends Cloneable {
 
 		})
 
-		/* "Normalize" the vector to generate probabilities */
+		/* "归一化" 初始隐含状态概率向量来生成概率 */
 		Pi = Pi.divide(sum).asInstanceOf[DenseVector]
 
-		/* Initialize the transition matrix */
+		/* 初始化传输矩阵 */
 		var values = Array.fill[Double](numHiddenStates)(0)
 		(0 until numHiddenStates).foreach(i => {
 
@@ -188,15 +164,15 @@ class Model extends Cloneable {
 				sum += values(j)
 			})
 
-			/* Normalize the random values to obtain probabilities */
+			/* 归一化随机值获取概率 */
 			(0 until numHiddenStates).foreach(j => values(j) /= sum)
 
-			/* Set this row of the transition matrix */
+			/* 设置传输矩阵的第i行的值 */
 			A.set(i, values)
 
 		})
 
-		/* Initialize the output matrix */
+		/* 初始化输出矩阵 */
 		values = Array.fill[Double](numOutputStates)(0)
 		(0 until numHiddenStates).foreach(i => {
 
@@ -206,10 +182,10 @@ class Model extends Cloneable {
 				sum += values(j)
 			})
 
-			/* Normalize the random values to obtain probabilities */
+			/* 归一化随机值获取概率 */
 			(0 until numOutputStates).foreach(j => values(j) /= sum)
 
-			/* Set this row of the output matrix */
+			/* 设置输出矩阵的第i行的值 */
 			B.set(i, values)
 
 		})
@@ -229,9 +205,8 @@ class Model extends Cloneable {
 	def getHiddenStateNames() : Map[String, Int] = hiddenStateNames.toMap
 
 	/**
-	 * Register an array of hidden state names. We assume that the
-	 * state name at position i has the ID i
-	 */
+	  * 注册一个隐含状态名称数组，假设位置i的隐含状态名称的ID为i
+	  */
 	def registerHiddenStateNames(stateNames : Array[String]) {
 
 		if (stateNames != null) {
@@ -241,8 +216,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Register a map of hidden state Names/state IDs
-	 */
+	  * 注册一个隐含状态名称和状态ID的映射表
+	  */
 	def registerHiddenStateNames(stateNames : Map[String, Int]) {
 
 		if (stateNames != null) {
@@ -256,8 +231,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Lookup the name for the given hidden state ID
-	 */
+	  * 通过隐含状态的ID查询其名称
+	  */
 	def getHiddenStateName(id : Int) : String = {
 
 		if (hiddenStateNames.isEmpty) return null
@@ -268,8 +243,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Lookup the ID for the given hidden state name
-	 */
+	  * 通过隐含状态的名称查询其ID
+	  */
 	def getHiddenStateID(name : String) : Int = {
 
 		hiddenStateNames.get(name) match {
@@ -282,9 +257,8 @@ class Model extends Cloneable {
 	def getOutputStateNames() : Map[String, Int] = outputStateNames.toMap
 
 	/**
-	 * Register an array of output state names. We assume that the
-	 * state name at position i has the ID i
-	 */
+	  * 注册一个输出状态名称的数组，假设位置i的状态名称的ID为i
+	  */
 	def registerOutputStateNames(stateNames : Array[String]) {
 
 		if (stateNames != null) {
@@ -298,8 +272,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Register a map of hidden state Names/state IDs
-	 */
+	  * 注册一个隐含状态名称和状态ID的映射表
+	  */
 	def registerOutputStateNames(stateNames : Map[String, Int]) {
 		if (stateNames != null) {
 
@@ -311,8 +285,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Lookup the name for the given output state id
-	 */
+	  * 通过输出状态的ID查询其名称
+	  */
 	def getOutputStateName(id : Int) : String = {
 
 		if (outputStateNames.isEmpty) return null
@@ -323,8 +297,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Lookup the ID for the given output state name
-	 */
+	  * 通过输出状态的名称查询其ID
+	  */
 	def getOutputStateID(name : String) : Int = {
 
 		outputStateNames.get(name) match {
@@ -336,8 +310,8 @@ class Model extends Cloneable {
 	}
 
 	/**
-	 * Normalize the probabilities of the model
-	 */
+	  * 归一化HMM模型中的概率
+	  */
 	def normalize() {
 
 		var isum = 0.0

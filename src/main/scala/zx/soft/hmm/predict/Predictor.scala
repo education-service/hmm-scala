@@ -6,44 +6,34 @@ import org.apache.mahout.common.RandomUtils
 import org.apache.mahout.math.{ DenseMatrix, DenseVector }
 
 /**
- * The HMMPredictor offers several methods to predict from a HMM Model.
- *
- * The following use-cases are covered:
- *
- * 1) Generate a sequence of output states from a given model (prediction).
- *
- * 2) Compute the likelihood that a given model generated a given sequence
- *    of output states (model likelihood).
- *
- * 3) Compute the most likely hidden sequence for a given model and a given
- *    observed sequence (decoding).
- */
+  * 预测器，提供三种方法从HMM模型数据中预测结果，三种用户场景如下：
+  * 1) 从一个给定的模型中生成一个输出状态序列（预测）
+  * 2) 计算一个给定模型生成一个给定给定输出状态序列的最大似然值（模型最大似然）
+  * 3) 对于一个给定的模型和观察序列，计算最可能的隐含序列（解码）
+  */
 object Predictor {
 
-	/**
-	 * Predict the most likely sequence of hidden states for the given model and
-	 * observation. Set scaled to true, if log-scaled computation is to be used.
-	 *
-	 * This requires higher computational effort but is numerically more stable
-	 * for large observation sequences.
+	/*
+	 * 对于一个给定的模型和观察序列，预测出最可能的隐含序列；
+	 * 如果使用log刻度来计算，设置scaled为true；
+	 * 该过程需要高性能的硬件计算能力，但是对于大的观察序列数值计算更稳定些。
 	 */
 	def predict(model : Model, observedStates : Array[Int], scaled : Boolean) : Array[Int] = {
-		AlgoViterbi.run(model, observedStates, scaled)
+		Viterbi.run(model, observedStates, scaled)
 	}
 
-	/**
-	 * Predict a sequence of steps output states for the given HMM model
+	/*
+	 * 对于给定的HMM模型，预测逐步输出状态的序列
 	 */
 	def predict(model : Model, steps : Int) : Array[Int] = predict(model, steps, RandomUtils.getRandom())
 
-	/**
-	 * Predict a sequence of steps output states for the given HMM model
+	/*
+	 * 对于给定的HMM模型，预测逐步输出状态的序列，含有参数seed
 	 */
 	def predict(model : Model, steps : Int, seed : Long) : Array[Int] = predict(model, steps, RandomUtils.getRandom(seed))
 
-	/**
-	 * Predict a sequence of steps output states for the given HMM model
-	 * using the given seed for probabilistic experiments
+	/*
+	 * 对于给定的HMM模型，使用给定的概率实验seed，预测逐步输出状态的序列
 	 */
 	private def predict(model : Model, steps : Int, rand : Random) : Array[Int] = {
 
@@ -54,7 +44,7 @@ object Predictor {
 
 		val outputStates = new Array[Int](steps)
 
-		/* Choose the initial state */
+		/* 选择起始状态 */
 		var hiddenState = 0
 
 		var randnr = rand.nextDouble()
@@ -63,11 +53,10 @@ object Predictor {
 		}
 
 		/*
-     * Draw steps output states according to the
-     * cumulative distributions
-     */
+		 * 根据累计概率分布画出逐步输出状态
+		 */
 		for (step <- 0 until steps) {
-			/* Choose output state to given hidden state */
+			/* 选择输出状态到给定的隐含状态 */
 			randnr = rand.nextDouble()
 			var outputState = 0
 
@@ -77,7 +66,7 @@ object Predictor {
 
 			outputStates(step) = outputState
 
-			/* Choose the next hidden state */
+			/* 选择下一个隐含状态 */
 			randnr = rand.nextDouble();
 			var nextHiddenState = 0
 
@@ -92,10 +81,9 @@ object Predictor {
 
 	}
 
-	/**
-	 * Compute the cumulative transition probability matrix for the
-	 * given HMM model. Each row i is the cumulative distribution of
-	 * the transition probability distribution for hidden state i.
+	/*
+	 * 对于给定的HMM模型，计算其累计传输概率矩阵；
+	 * 每行i是隐含状态i的传输矩阵概率分布的累计分布。
 	 */
 	private def getCumulativeA(model : Model) : DenseMatrix = {
 
@@ -111,10 +99,8 @@ object Predictor {
 				sum += A.get(i, j)
 				cA.set(i, j, sum)
 			})
-			/*
-       * Make sure the last hidden state has always
-       * a cumulative probability of exactly 1.0
-       */
+
+			// 保证最后的一个隐含状态总是1.0的累计概率值
 			cA.set(i, numHiddenStates - 1, 1.0)
 
 		})
@@ -123,10 +109,9 @@ object Predictor {
 
 	}
 
-	/**
-	 * Compute the cumulative output probability matrix for the
-	 * given HMM model. Each row i is the cumulative distribution
-	 * of the output probability distribution for hidden state i.
+	/*
+	 * 对于给的的HMM模型，计算累计输出概率矩阵；
+	 * 每行i是隐含状态i的输出概率分布的累计分布。
 	 */
 	private def getCumulativeB(model : Model) : DenseMatrix = {
 
@@ -143,10 +128,8 @@ object Predictor {
 				sum += B.get(i, j)
 				cB.set(i, j, sum)
 			})
-			/*
-       * Make sure the last output state has always
-       * a cumulative probability of exactly 1.0
-       */
+
+			// 保证最后的一个输出状态总是1.0累计概率值
 			cB.set(i, numOutputStates - 1, 1.0)
 
 		})
@@ -155,9 +138,8 @@ object Predictor {
 
 	}
 
-	/**
-	 * Compute the cumulative distribution of the initial hidden
-	 * state probabilities for the given HMM model.
+	/*
+	 * 对于给定的HMM模型，计算起始隐含状态概率的累计分布
 	 */
 	private def getCumulativePi(model : Model) : DenseVector = {
 
@@ -171,26 +153,21 @@ object Predictor {
 			sum += Pi.get(i)
 			cPi.set(i, sum)
 		})
-		/*
-     * Make sure the last initial hidden state has always
-     * a cumulative probability of exactly 1.0
-     */
-		cPi.set(numHiddenStates - 1, 1.0) // make sure the last initial
+
+		// 保证最后一个隐含状态总是1.0累计概率值
+		cPi.set(numHiddenStates - 1, 1.0)
+
 		cPi
 
 	}
 
-	/**
-	 * Returns the likelihood that a given output sequence was produced by the
-	 * given model. Internally, this function calls the forward algorithm to
-	 * compute the alpha values and then uses the overloaded function to compute
-	 * the actual model likelihood.
-	 *
-	 * If scaled is set to true, log-scaled parameters are used for computation.
-	 * This is computationally more expensive, but offers better numerically
-	 * stability in case of long output sequences.
+	/*
+	 * 返回给定模型产生的给定输出序列的最大似然值；
+	 * 在方法内部，调用了前向算法来计算alpha值，然后使用重载函数来计算实际的模型似然值；
+	 * 如果scaled设置true，那么使用log刻度来计算；
+	 * 算法这种计算比较耗资源，但是对于大的输出序列数值稳定性较好。
 	 */
-	def modelLikelihood(model : Model, outputStates : Array[Int], scaled : Boolean) : Double = modelLikelihood(AlgoForward.run(model, outputStates, scaled), scaled)
+	def modelLikelihood(model : Model, outputStates : Array[Int], scaled : Boolean) : Double = modelLikelihood(Forward.run(model, outputStates, scaled), scaled)
 
 	def modelLikelihood(alpha : DenseMatrix, scaled : Boolean) : Double = {
 
@@ -211,10 +188,9 @@ object Predictor {
 
 	}
 
-	/**
-	 * Computes the likelihood that a given output sequence was
-	 * computed by a given model. Set scaled to true if betas are
-	 * log-scaled.
+	/*
+	 * 对于给定模型计算出来的输出序列，计算出该输出序列的似然值；
+	 * 如果beta都是log刻度的，需要将scaled设置为true。
 	 */
 	def modelLikelihood(model : Model, outputSequence : Array[Int], beta : DenseMatrix, scaled : Boolean) : Double = {
 

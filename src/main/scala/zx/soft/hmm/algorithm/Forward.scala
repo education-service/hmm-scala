@@ -3,9 +3,9 @@ package zx.soft.hmm.algorithm
 import org.apache.mahout.math.{ DenseMatrix, DenseVector }
 
 /**
- * Implementation of the Forward algorithm
- */
-object AlgoForward {
+  * 前向算法
+  */
+object Forward {
 
 	def run(model : Model, observations : Array[Int], scaled : Boolean) : DenseMatrix = {
 
@@ -28,9 +28,7 @@ object AlgoForward {
 
 		if (scaled) {
 
-			/*
-       * Initialization
-       */
+			// 初始化
 			(0 until numStates).foreach(i => alpha.setQuick(0, i, Math.log(Pi.getQuick(i) * B.getQuick(i, observations(0)))))
 
 			(1 until numObserv).foreach(t => {
@@ -41,7 +39,7 @@ object AlgoForward {
 
 						val tmp = alpha.getQuick(t - 1, j) + Math.log(A.getQuick(j, i))
 						if (tmp > Double.NegativeInfinity) {
-							// make sure we handle log(0) correctly
+							// 确保能正确处理log(0)的情况
 							sum = tmp + Math.log1p(Math.exp(sum - tmp))
 						}
 
@@ -54,9 +52,7 @@ object AlgoForward {
 
 		} else {
 
-			/*
-       * Initialization
-       */
+			// 初始化
 			(0 until numStates).foreach(i => alpha.setQuick(0, i, Pi.getQuick(i) * B.getQuick(i, observations(0))))
 
 			(1 until numObserv).foreach(t => {

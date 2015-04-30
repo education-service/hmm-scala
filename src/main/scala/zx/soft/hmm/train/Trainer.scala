@@ -7,53 +7,43 @@ import org.apache.mahout.math.{ DenseMatrix, DenseVector }
 import scala.util.control.Breaks._
 
 /**
- * three main algorithms are: supervised learning, unsupervised Viterbi and
- * unsupervised Baum-Welch.
- */
+  * 模型训练，包含三个主要的算法：有监督学习、无监督学习和无监督Baum-Welch算法。
+  */
 object Trainer {
 
-	/**
-	 * Create an supervised initial estimate of an HMM Model
-	 * based on a sequence of observed and hidden states.
-	 */
+	/* 基于观察序列和隐含状态构建一个有监督的HMM模型的起始估计值 */
 	def trainSupervised(numHiddenStates : Int, numOutputStates : Int, observedStates : Array[Int], hiddenStates : Array[Int], pseudoCount : Double) : Model = {
 
-		/* Make sure the pseudo count is not zero */
+		/* 保证伪计数不为0 */
 		val pseudo = if (pseudoCount == 0) Double.MinValue else pseudoCount
 
 		val A = new DenseMatrix(numHiddenStates, numHiddenStates)
 		val B = new DenseMatrix(numHiddenStates, numOutputStates)
 
-		/*
-     * Assign a small initial probability that is larger than zero,
-     * so unseen states will not get a zero probability
-     */
+		// 分配一个大于0的初始小概率，所以看不到的状态将不会获取一个0概率值
 		A.assign(pseudo)
 		B.assign(pseudo)
 
-		/*
-     * Given no prior knowledge, we have to assume that all initial
-     * hidden states are equally likely
-     */
+		// 考虑到没有先验知识，需要假设所有的初始隐含状态可能相等
 		val Pi = new DenseVector(numHiddenStates)
 		Pi.assign(1.0 / numHiddenStates)
 
-		/* Loop over the sequences to count the number of transitions */
+		/* 循环序列计算出传输的数量 */
 		countTransitions(A, B, observedStates, hiddenStates)
 
-		/* Make sure that probabilities are normalized */
+		/* 保证概率都被归一化 */
 		(0 until numHiddenStates).foreach(i => {
 
-			/* Compute sum of probabilities for current row of transition matrix */
+			/* 计算传输矩阵当前行的概率和 */
 			var sum = 0.0
 			(0 until numHiddenStates).foreach(j => sum += A.getQuick(i, j))
-			/* Normalize current row of transition matrix */
+			/* 归一化传输矩阵当前行 */
 			(0 until numHiddenStates).foreach(j => A.setQuick(i, j, A.getQuick(i, j) / sum))
 
-			/* Compute sum of probabilities for current row of emission matrix */
+			/* 计算发射矩阵当前行的概率和 */
 			sum = 0.0
 			(0 until numOutputStates).foreach(j => sum += B.getQuick(i, j))
-			/* Normalize current row of emission matrix */
+			/* 归一化发射矩阵当前行 */
 			(0 until numOutputStates).foreach(j => B.setQuick(i, j, B.getQuick(i, j) / sum))
 
 		})
@@ -63,9 +53,8 @@ object Trainer {
 	}
 
 	/**
-	 * Function that counts the number of state->state and state->output
-	 * transitions for the given observed/hidden sequence.
-	 */
+	  * 对于给定的观察序列和隐含序列，计算state->state和state->output传输的数量
+	  */
 	private def countTransitions(A : DenseMatrix, B : DenseMatrix, observedStates : Array[Int], hiddenStates : Array[Int]) {
 
 		B.setQuick(hiddenStates(0), observedStates(0), B.getQuick(hiddenStates(0), observedStates(0)) + 1)
@@ -80,12 +69,11 @@ object Trainer {
 	}
 
 	/**
-	 * Create an supervised initial estimate of an HMM Model
-	 * based on a number of sequences of observed and hidden states.
-	 */
+	  * 基于多个观察序列和隐含状态构建一个有监督的HMM模型起始估计值
+	  */
 	def trainSupervisedSequence(numHiddenStates : Int, numOutputStates : Int, observedSeq : Collection[Array[Int]], hiddenSeq : Collection[Array[Int]], pseudoCount : Double) : Model = {
 
-		/* Make sure the pseudo count is not zero */
+		/* 保证伪计数不为0 */
 		val pseudo = if (pseudoCount == 0) Double.MinValue else pseudoCount
 
 		val A = new DenseMatrix(numHiddenStates, numHiddenStates)
@@ -93,13 +81,13 @@ object Trainer {
 
 		val Pi = new DenseVector(numHiddenStates)
 
-		/* Assign pseudo count to avoid zero probabilities */
+		/* 分配伪计数来避免0概率 */
 		A.assign(pseudo)
 		B.assign(pseudo)
 
 		Pi.assign(pseudo)
 
-		/* Loop over the sequences to count the number of transitions */
+		/* 循环训练计算传输数量 */
 		val hiddenIter = hiddenSeq.iterator()
 		val observedIter = observedSeq.iterator()
 
@@ -108,32 +96,32 @@ object Trainer {
 			val hiddenStates = hiddenIter.next()
 			val observedStates = observedIter.next()
 
-			// increase the count for initial probabilities
+			// 增加起始概率的数量
 			Pi.setQuick(hiddenStates(0), Pi.getQuick(hiddenStates(0)) + 1)
 			countTransitions(A, B, observedStates, hiddenStates)
 		}
 
-		/* Make sure that probabilities are normalized */
-		var isum = 0.0 // sum of initial probabilities
+		/*保证所有概率归一化 */
+		var isum = 0.0 // 起始概率的和
 		(0 until numHiddenStates).foreach(i => {
 
 			isum += Pi.getQuick(i)
 
-			/* Compute sum of probabilities for current row of transition matrix */
+			/* 计算传输矩阵当前行的概率和 */
 			var sum = 0.0
 			(0 until numHiddenStates).foreach(j => sum += A.getQuick(i, j))
-			/* Normalize current row of transition matrix */
+			/* 归一化传输矩阵当前行 */
 			(0 until numHiddenStates).foreach(j => A.setQuick(i, j, A.getQuick(i, j) / sum))
 
-			/* Compute sum of probabilities for current row of emission matrix */
+			/* 计算发射矩阵当前行的概率和 */
 			sum = 0
 			(0 until numOutputStates).foreach(j => sum += B.getQuick(i, j))
-			/* Normalize current row of emission matrix */
+			/* 归一化发射矩阵当前行 */
 			(0 until numOutputStates).foreach(j => B.setQuick(i, j, B.getQuick(i, j) / sum))
 
 		})
 
-		/* Normalize the initial probabilities */
+		/* 归一化起始概率 */
 		(0 until numHiddenStates).foreach(i => Pi.setQuick(i, Pi.getQuick(i) / isum))
 
 		new Model(A, B, Pi)
@@ -141,12 +129,11 @@ object Trainer {
 	}
 
 	/**
-	 * Iteratively train the parameters of the given initial model with regard
-	 * to the observed sequence using Viterbi training.
-	 */
+	  * 对于给定的与观察序列相关的起始模型，使用Viterbi训练算法迭代训练其参数
+	  */
 	def trainViterbi(initialModel : Model, observedStates : Array[Int], pseudoCount : Double, epsilon : Double = 0.0001, maxIterations : Int = 1000, scaled : Boolean = true) : Model = {
 
-		/* Make sure the pseudo count is not zero */
+		/* 保证伪计数不为0 */
 		val pseudo = if (pseudoCount == 0) Double.MinValue else pseudoCount
 
 		val lastModel = initialModel.clone()
@@ -157,50 +144,47 @@ object Trainer {
 		val phi = Array.fill[Int](observedStates.length - 1, initialModel.getNumHiddenStates())(0)
 		val delta = Array.fill[Double](observedStates.length, initialModel.getNumHiddenStates())(0.0)
 
-		/* Run the Viterbi training iteration */
+		/* 使用Viterbi训练算法迭代 */
 		breakable {
 			(0 until maxIterations).foreach(i => {
 
-				/* Compute the Viterbi path */
-				AlgoViterbi.run(viterbiPath, delta, phi, lastModel, observedStates, scaled)
+				/* 计算Viterbi路径 */
+				Viterbi.run(viterbiPath, delta, phi, lastModel, observedStates, scaled)
 
-				/*
-       * Viterbi iteration uses the viterbi path
-       * to update the probabilities
-       */
+				// Viterbi迭代使用viterbi路径更新概率
 				val A = model.getAMatrix
 				val B = model.getBMatrix
 
-				/* Assign the pseudo count */
+				/* 分配伪计数值 */
 				A.assign(pseudo)
 				B.assign(pseudo)
 
-				/* Count the transitions */
+				/* 计算传输矩阵 */
 				countTransitions(A, B, observedStates, viterbiPath)
 
 				val numHiddenStates = model.getNumHiddenStates()
 				val numOutputStates = model.getNumOutputStates()
 
-				/* Normalize the probabilities */
+				/* 归一化矩阵概率 */
 				(0 until numHiddenStates).foreach(j => {
 
 					var sum = 0.0
-					/* Normalize the rows of the transition matrix */
+					/* 归一化传输的行 */
 					(0 until numHiddenStates).foreach(k => sum += A.getQuick(j, k))
 					(0 until numHiddenStates).foreach(k => A.setQuick(j, k, A.getQuick(j, k) / sum))
 
-					/* Normalize the rows of the emission matrix */
+					/* 归一化发射矩阵的行 */
 					sum = 0.0
 					(0 until numOutputStates).foreach(k => sum += B.getQuick(j, k))
 					(0 until numOutputStates).foreach(k => B.setQuick(j, k, B.getQuick(j, k) / sum))
 
 				})
 
-				/* Check for convergence */
+				/* 检查是否收敛 */
 				if (checkConvergence(lastModel, model, epsilon)) {
 					break;
 				}
-				/* Overwrite the last iterated model by the new iteration */
+				/* 使用新的迭代模型数据覆盖上一次的迭代模型 */
 				lastModel.assign(model);
 
 			})
@@ -209,35 +193,27 @@ object Trainer {
 		model
 
 	}
+
 	/**
-	 * Build a randomized initial HMM and use the BaumWelch algorithm to
-	 * iteratively train the parameters of the model with regard to the
-	 * givven observed sequence
-	 */
+	  * 构建一个随机的起始HMM，并使用BaumWelch算法迭代训练与给定观察训练相关的模型参数
+	  */
 	def trainBaumWelch(numHiddenStates : Int, numOutputStates : Int, observedStates : Array[Int], epsilon : Double = 0.0001, maxIterations : Int = 1000) : Model = {
 
-		/* Construct random-generated HMM */
+		/* 构建随机的HMM */
 		val model = new Model(numHiddenStates, numOutputStates, new Date().getTime())
 
-		/* Train model with provided observations */
+		/* 通过给定的观察序列训练模型 */
 		trainBaumWelch(model, observedStates, epsilon, maxIterations, true)
 
 	}
 
-	/**
-	 * Iteratively train the parameters of the given initial model with regard to the
-	 * observed sequence using Baum-Welch training.
-	 *
-	 * initialModel: The initial model that gets iterated
-	 * observedSequence: The sequence of observed states
-	 *
-	 * epsilon: Convergence criteria
-	 * maxIterations: The maximum number of training iterations
-	 *
-	 * scaled: Use log-scaled implementations of forward/backward algorithm.
-	 * This is computationally more expensive, but offers better numerical
-	 * stability for long output sequences.
-	 *
+	/*
+	 * 对于给定的与观察训练相关的起始模型，使用Baum-Welch训练算法迭代训练参数。
+	 * initialModel：需要迭代的起始模型
+	 * observedSequence：观察状态序列
+	 * epsilon：收敛值
+	 * maxIterations：最大迭代次数
+	 * scaled：使用log刻度实现前向/后向算法，这样的话计算资源消耗比较大，但是对于很长的输出序列可以提供更好的数值稳定性
 	 */
 	def trainBaumWelch(initialModel : Model, observedStates : Array[Int], epsilon : Double, maxIterations : Int, scaled : Boolean) : Model = {
 
@@ -250,7 +226,7 @@ object Trainer {
 		val alpha = new DenseMatrix(visibleCount, hiddenCount)
 		val beta = new DenseMatrix(visibleCount, hiddenCount)
 
-		/* Run the baum Welch training iteration */
+		/* 使用BaumWelch算法迭代训练 */
 		breakable {
 			for (it <- 0 until maxIterations) {
 
@@ -262,51 +238,46 @@ object Trainer {
 				val numHiddenStates = model.getNumHiddenStates()
 				val numOutputStates = model.getNumOutputStates()
 
-				/* Compute forward and backward factors */
-				AlgoForward.run(model, alpha, observedStates, scaled)
-				AlgoBackward.run(model, beta, observedStates, scaled)
+				/* 计算前向和后向因子 */
+				Forward.run(model, alpha, observedStates, scaled)
+				Backward.run(model, beta, observedStates, scaled)
 
 				if (scaled) {
 					logScaledBaumWelch(observedStates, model, alpha, beta)
-
 				} else {
 					unscaledBaumWelch(observedStates, model, alpha, beta)
-
 				}
 
-				/*
-       * Normalize transition/emission probabilities
-       * and normalize the probabilities
-       */
+				// 归一化传输矩阵和发射矩阵的概率
 				var isum = 0.0
 				for (j <- 0 until numHiddenStates) {
 
-					/* Normalize the rows of the transition matrix */
+					/* 归一化传输矩阵的行 */
 					var sum = 0.0
 
 					(0 until numHiddenStates).foreach(k => sum += A.getQuick(j, k))
 					(0 until numHiddenStates).foreach(k => A.setQuick(j, k, A.getQuick(j, k) / sum))
 
-					/* Normalize the rows of the emission matrix */
+					/* 归一化发射矩阵的行 */
 					sum = 0.0
 
 					(0 until numOutputStates).foreach(k => sum += B.getQuick(j, k))
 					(0 until numOutputStates).foreach(k => B.setQuick(j, k, B.getQuick(j, k) / sum))
 
-					/* Normalization parameter for initial probabilities */
+					/* 归一化起始概率的参数 */
 					isum += Pi.getQuick(j)
 
 				}
 
-				/* Normalize initial probabilities */
+				/* 归一化起始概率 */
 				(0 until numHiddenStates).foreach(i => Pi.setQuick(i, Pi.getQuick(i) / isum))
 
-				/* Check for convergence */
+				/* 检查是否收敛 */
 				if (checkConvergence(lastModel, model, epsilon)) {
 					break
 				}
 
-				/* Overwrite the last iterated model by the new iteration */
+				/* 使用新的迭代模型数据覆盖上一次的迭代模型 */
 				lastModel.assign(model)
 
 			}
@@ -334,7 +305,7 @@ object Trainer {
 			Pi.setQuick(i, alpha.getQuick(0, i) * beta.getQuick(0, i))
 		}
 
-		/* Compute transition probabilities A */
+		/* 计算传输概率矩阵A */
 		(0 until numHiddenStates).foreach(i => {
 			(0 until numHiddenStates).foreach(j => {
 
@@ -348,13 +319,13 @@ object Trainer {
 			})
 		})
 
-		/* Compute emission probabilities B */
+		/* 计算发射概率矩阵B */
 		(0 until numHiddenStates).foreach(i => {
 			(0 until numOutputStates).foreach(j => {
 
 				var temp = 0.0
 				(0 until numObserv).foreach(t => {
-					// delta tensor
+					// delta张量
 					if (observedStates(t) == j) {
 						temp += alpha.getQuick(t, i) * beta.getQuick(t, i)
 					}
@@ -384,7 +355,7 @@ object Trainer {
 
 		(0 until numHiddenStates).foreach(i => Pi.setQuick(i, Math.exp(alpha.getQuick(0, i) + beta.getQuick(0, i))))
 
-		/* Compute transition probabilities */
+		/* 计算传输概率矩阵 */
 		(0 until numHiddenStates).foreach(i => {
 			(0 until numHiddenStates).foreach(j => {
 
@@ -393,7 +364,7 @@ object Trainer {
 
 					val temp = alpha.getQuick(t, i) + Math.log(B.getQuick(j, observedSequence(t + 1))) + beta.getQuick(t + 1, j)
 					if (temp > Double.NegativeInfinity) {
-						// handle 0-probabilities
+						// 处理0概率值情况
 						sum = temp + Math.log1p(Math.exp(sum - temp))
 					}
 
@@ -404,18 +375,18 @@ object Trainer {
 			})
 		})
 
-		/* Compute emission probabilities */
+		/* 计算发射概率矩阵 */
 		(0 until numHiddenStates).foreach(i => {
 			(0 until numOutputStates).foreach(j => {
 
 				var sum = Double.NegativeInfinity // log(0)
 
 				(0 until sequenceLen).foreach(t => {
-					// delta tensor
+					// delta张量
 					if (observedSequence(t) == j) {
 						val temp = alpha.getQuick(t, i) + beta.getQuick(t, i)
 						if (temp > Double.NegativeInfinity) {
-							// handle 0-probabilities
+							// 处理0概率值情况
 							sum = temp + Math.log1p(Math.exp(sum - temp))
 						}
 					}
@@ -430,12 +401,11 @@ object Trainer {
 	}
 
 	/**
-	 * Check convergence of two HMM models by computing a simple
-	 * distance between emission / transition matrices
-	 */
+	  * 通过计算发射矩阵和传输矩阵的简单距离来检查两种HMM模型是否收敛
+	  */
 	def checkConvergence(oldModel : Model, newModel : Model, epsilon : Double) : Boolean = {
 
-		/* Convergence of transitionProbabilities */
+		/* 传输概率的收敛 */
 		val oldA = oldModel.getAMatrix
 		val newA = newModel.getAMatrix
 
@@ -457,7 +427,7 @@ object Trainer {
 
 		diff = 0.0
 
-		/* Convergence of emissionProbabilities */
+		/* 发射概率的收敛 */
 		val oldB = oldModel.getBMatrix
 		val newB = newModel.getBMatrix
 

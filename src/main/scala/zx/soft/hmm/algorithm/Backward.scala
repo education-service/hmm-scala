@@ -3,9 +3,9 @@ package zx.soft.hmm.algorithm
 import org.apache.mahout.math.{ DenseMatrix, DenseVector }
 
 /**
- * Implementation of the Backward algorithm
- */
-object AlgoBackward {
+  * 后向算法
+  */
+object Backward {
 
 	def run(model : Model, observations : Array[Int], scaled : Boolean) : DenseMatrix = {
 
@@ -26,9 +26,7 @@ object AlgoBackward {
 
 		if (scaled) {
 
-			/*
-       * Initialization
-       */
+			// 初始化
 			(0 until numStates).foreach(i => beta.setQuick(numObserv - 1, i, 0))
 
 			for (t <- numObserv - 2 to 0 by -1) {
@@ -39,7 +37,7 @@ object AlgoBackward {
 
 						val tmp = beta.getQuick(t + 1, j) + Math.log(A.getQuick(i, j)) + Math.log(B.getQuick(j, observations(t + 1)))
 						if (tmp > Double.NegativeInfinity) {
-							// handle log(0)
+							// 处理log(0)的情况
 							sum = tmp + Math.log1p(Math.exp(sum - tmp))
 						}
 					})
@@ -50,9 +48,8 @@ object AlgoBackward {
 			}
 
 		} else {
-			/*
-       * Initialization
-       */
+
+			// 初始化
 			(0 until numStates).foreach(i => beta.setQuick(numObserv - 1, i, 1))
 
 			for (t <- numObserv - 2 to 0 by -1) {
